@@ -10,7 +10,6 @@ Implementa o orquestrador de conversa com:
 
 import logging
 import os
-import re
 from typing import Annotated, Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
@@ -20,8 +19,9 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
-from chatbot.prompts import FALLBACK_MESSAGE, LLM_UNAVAILABLE_MESSAGE, SYSTEM_PROMPT
-from chatbot.tools import TOOLS
+from chatbot.prompts import EXTRACT_PROMPT, FALLBACK_MESSAGE, LLM_UNAVAILABLE_MESSAGE, SYSTEM_PROMPT
+from chatbot.schema import ChatDecision, build_action, normalize_draft
+from chatbot.tools import TOOLS, user_id as user_id_context, user_token as user_token_context
 
 logger = logging.getLogger(__name__)
 
@@ -82,93 +82,64 @@ def call_llm(state: AgentState) -> dict:
         return {"messages": [fallback]}
 
 
-def extract_intent_and_entities(state: AgentState) -> dict:
-    """
-    Nó de pós-processamento: analisa a última mensagem do LLM para detectar
-    intenção e extrair entidades estruturadas para o formulário de reporte.
-    """
-    last_message = state["messages"][-1]
-
-    if not isinstance(last_message, AIMessage):
-        return {"intent": "unknown", "entities": {}}
-
-    content = last_message.content.lower() if isinstance(last_message.content, str) else ""
-
-    # Detecção de intenção baseada no conteúdo da resposta
-    intent = "faq"  # padrão
-
-    if any(kw in content for kw in ["formulário", "pré-preenchido", "vou te redirecionar", "rua ", "avenida ", "localização"]):
-        intent = "report"
-    elif any(kw in content for kw in ["chamado #", "status:", "criado em:", "seus chamados"]):
-        intent = "query_report"
-    elif any(kw in content for kw in ["não entendi", "não consegui entender", "pode me ajudar com"]):
-        intent = "unknown"
-
-    # Extração de entidades quando a intenção é reporte
-    entities: dict[str, Any] = {}
-    if intent == "report":
-        entities = _extract_report_entities(state["messages"])
-
-    return {"intent": intent, "entities": entities}
-
-
-def _extract_report_entities(messages: list[BaseMessage]) -> dict[str, Any]:
-    """
-    Extrai entidades de reporte (localização, descrição, categoria)
-    do histórico de mensagens da conversa.
-    """
-    entities: dict[str, Any] = {}
-    full_conversation = " ".join(
-        m.content for m in messages
-        if isinstance(m, (HumanMessage, AIMessage)) and isinstance(m.content, str)
-    ).lower()
-
-    # Extração de categoria por palavras-chave
-    category_keywords = {
-        "Pavimentação": ["buraco", "asfalto", "calçada", "pavimento", "cratera"],
-        "Iluminação Pública": ["luz", "poste", "iluminação", "lâmpada", "escuro"],
-        "Limpeza Urbana": ["lixo", "sujeira", "entulho", "coleta", "resíduos"],
-        "Saneamento": ["bueiro", "esgoto", "entupido", "vazamento", "água"],
-        "Arborização": ["árvore", "galho", "raiz", "poda", "planta"],
-    }
-
-    for category, keywords in category_keywords.items():
-        if any(kw in full_conversation for kw in keywords):
-            entities["category"] = category
-            break
-
-    if "category" not in entities:
-        entities["category"] = "Outros"
-
-    # Extração básica de localização por padrões comuns
-    location_patterns = [
-        r"rua\s+[\w\s]+",
-        r"avenida\s+[\w\s]+",
-        r"av\.\s+[\w\s]+",
-        r"alameda\s+[\w\s]+",
-        r"praça\s+[\w\s]+",
-        r"bairro\s+[\w\s]+",
-    ]
-
+def _transcript(messages: list[BaseMessage]) -> str:
+    lines: list[str] = []
     for message in messages:
         if isinstance(message, HumanMessage) and isinstance(message.content, str):
-            for pattern in location_patterns:
-                match = re.search(pattern, message.content, re.IGNORECASE)
-                if match:
-                    entities["location"] = match.group(0).strip()[:100]
-                    break
-        if "location" in entities:
-            break
+            lines.append(f"Usuário: {message.content}")
+        elif (
+            isinstance(message, AIMessage)
+            and isinstance(message.content, str)
+            and message.content
+            and not message.tool_calls
+        ):
+            lines.append(f"Assistente: {message.content}")
+    return "\n".join(lines)
 
-    # A descrição é composta pelas mensagens do usuário
-    user_messages = [
-        m.content for m in messages
-        if isinstance(m, HumanMessage) and isinstance(m.content, str)
-    ]
-    if user_messages:
-        entities["description"] = user_messages[-1][:300]  # Última mensagem do usuário
 
-    return entities
+def _structured_decision(messages: list[BaseMessage]) -> dict[str, Any]:
+    """Pede ao modelo um objeto tipado, sem interpretar palavras-chave no texto."""
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY não configurada. Verifique o arquivo .env")
+
+    structured = ChatGroq(
+        model="openai/gpt-oss-20b",
+        groq_api_key=api_key,
+        temperature=0,
+    ).with_structured_output(ChatDecision)
+
+    result = structured.invoke([
+        SystemMessage(content=EXTRACT_PROMPT),
+        HumanMessage(content=_transcript(messages) or "Sem mensagens."),
+    ])
+    if isinstance(result, ChatDecision):
+        payload = result.model_dump()
+    elif isinstance(result, dict):
+        payload = result
+    else:
+        raise TypeError("A classificação estruturada não retornou um objeto.")
+
+    intent = payload.get("intent")
+    if intent not in ("faq", "report", "query_report", "unknown"):
+        intent = "unknown"
+    return {"intent": intent, "entities": normalize_draft(payload.get("draft"))}
+
+
+def extract_intent_and_entities(state: AgentState) -> dict:
+    """Classifica a conversa e monta o rascunho com os enums do SmartCitys."""
+    last_message = state["messages"][-1]
+    if (
+        isinstance(last_message, AIMessage)
+        and last_message.content == LLM_UNAVAILABLE_MESSAGE
+    ):
+        return {"intent": "unknown", "entities": {}}
+
+    try:
+        return _structured_decision(state["messages"])
+    except Exception as error:
+        logger.exception("Erro ao classificar a conversa: %s", error)
+        return {"intent": "unknown", "entities": {}}
 
 
 def should_use_tools(state: AgentState) -> str:
@@ -270,7 +241,8 @@ def run_agent(
     }
 
     graph = get_graph()
-
+    token_reset = user_token_context.set(user_token)
+    user_reset = user_id_context.set(user_id)
     try:
         final_state = graph.invoke(initial_state)
     except Exception as e:
@@ -278,9 +250,12 @@ def run_agent(
         return {
             "message": LLM_UNAVAILABLE_MESSAGE,
             "intent": "unknown",
-            "entities": None,
-            "action": {"type": "none"},
+            "draft": None,
+            "action": {"type": "none", "payload": None},
         }
+    finally:
+        user_token_context.reset(token_reset)
+        user_id_context.reset(user_reset)
 
     # Extrai a última mensagem do assistente
     response_message = ""
@@ -293,23 +268,12 @@ def run_agent(
         response_message = FALLBACK_MESSAGE
 
     intent = final_state.get("intent", "faq")
-    entities = final_state.get("entities", {})
-
-    # Define a ação com base na intenção
-    action: dict[str, Any] = {"type": "none"}
-    if intent == "report" and entities:
-        action = {
-            "type": "navigate_to_form",
-            "payload": {
-                "location": entities.get("location"),
-                "description": entities.get("description"),
-                "category": entities.get("category"),
-            },
-        }
+    draft = normalize_draft(final_state.get("entities"))
+    action = build_action(intent, draft)
 
     return {
         "message": response_message,
         "intent": intent,
-        "entities": entities if entities else None,
+        "draft": draft,
         "action": action,
     }

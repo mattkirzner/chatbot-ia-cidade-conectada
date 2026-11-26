@@ -1,0 +1,134 @@
+[
+  {
+    "id_denuncia": 101,
+    "cidadao_id": "cidadao-ana",
+    "titulo": "Poste apagado na esquina",
+    "descricao": "Poste de iluminação pública apagado há três noites.",
+    "categoria": "ILUMINACAO_PUBLICA",
+    "regiao": "REGIAO_METROPOLITANA_DO_RECIFE",
+    "endereco": "Rua das Flores, 200",
+    "status": "ABERTA",
+    "prioridade": "ALTA"
+  },
+  {
+    "id_denuncia": 102,
+    "cidadao_id": "cidadao-ana",
+    "titulo": "Buraco na via",
+    "descricao": "Buraco grande no asfalto perto do número 80.",
+    "categoria": "MANUTENCAO_DE_VIAS",
+    "regiao": "REGIAO_METROPOLITANA_DO_RECIFE",
+    "endereco": "Avenida Norte, 80",
+    "status": "ABERTA",
+    "prioridade": "MEDIA"
+  },
+  {
+    "id_denuncia": 103,
+    "cidadao_id": "cidadao-ana",
+    "titulo": "Lixo acumulado",
+    "descricao": "Sacos de lixo acumulados na calçada após a coleta falhar.",
+    "categoria": "COLETA_DE_LIXO",
+    "regiao": "ZONA_DA_MATA",
+    "endereco": "Rua do Mercado, 15",
+    "status": "EM_ANALISE",
+    "prioridade": "MEDIA"
+  },
+  {
+    "id_denuncia": 104,
+    "cidadao_id": "cidadao-ana",
+    "titulo": "Bueiro entupido",
+    "descricao": "Bueiro entupido com água parada após a chuva.",
+    "categoria": "SANEAMENTO",
+    "regiao": "AGRESTE",
+    "endereco": "Praça Central, s/n",
+    "status": "RESOLVIDA",
+    "prioridade": "BAIXA"
+  },
+  {
+    "id_denuncia": 105,
+    "cidadao_id": "cidadao-ana",
+    "titulo": "Placa caída",
+    "descricao": "Placa de pare caída no cruzamento.",
+    "categoria": "SINALIZACAO_DE_TRANSITO",
+    "regiao": "REGIAO_METROPOLITANA_DO_RECIFE",
+    "endereco": "Rua do Sol, 10",
+    "status": "ABERTA",
+    "prioridade": "ALTA"
+  },
+  {
+    "id_denuncia": 106,
+    "cidadao_id": "cidadao-ana",
+    "titulo": "Lâmpada queimada no parque",
+    "descricao": "Lâmpada do poste do parque queimada.",
+    "categoria": "ILUMINACAO_PUBLICA",
+    "regiao": "REGIAO_METROPOLITANA_DO_RECIFE",
+    "endereco": "Parque da Jaqueira",
+    "status": "RESOLVIDA",
+    "prioridade": "BAIXA"
+  },
+  {
+    "id_denuncia": 201,
+    "cidadao_id": "cidadao-bruno",
+    "titulo": "Ponto sem movimento à noite",
+    "descricao": "Trecho sem iluminação e sem movimento à noite, com risco de segurança.",
+    "categoria": "SEGURANCA",
+    "regiao": "SERTAO",
+    "endereco": "Rua Nova, 40",
+    "status": "ABERTA",
+    "prioridade": "ALTA"
+  },
+  {
+    "id_denuncia": 202,
+    "cidadao_id": "cidadao-bruno",
+    "titulo": "Calçada quebrada",
+    "descricao": "Calçada quebrada dificultando a passagem.",
+    "categoria": "MANUTENCAO_DE_VIAS",
+    "regiao": "ZONA_DA_MATA",
+    "endereco": "Rua da Estação, 3",
+    "status": "EM_ANALISE",
+    "prioridade": "MEDIA"
+  },
+  {
+    "id_denuncia": 203,
+    "cidadao_id": "cidadao-bruno",
+    "titulo": "Entulho na via",
+    "descricao": "Entulho de obra jogado na via pública.",
+    "categoria": "COLETA_DE_LIXO",
+    "regiao": "AGRESTE",
+    "endereco": "Avenida do Campo, 90",
+    "status": "ABERTA",
+    "prioridade": "MEDIA"
+  },
+  {
+    "id_denuncia": 204,
+    "cidadao_id": "cidadao-bruno",
+    "titulo": "Vazamento na rua",
+    "descricao": "Vazamento de água na rua, formando poça.",
+    "categoria": "SANEAMENTO",
+    "regiao": "REGIAO_METROPOLITANA_DO_RECIFE",
+    "endereco": "Rua do Rio, 12",
+    "status": "ABERTA",
+    "prioridade": "ALTA"
+  },
+  {
+    "id_denuncia": 205,
+    "cidadao_id": "cidadao-bruno",
+    "titulo": "Obra irregular na calçada",
+    "descricao": "Obra irregular ocupando a calçada sem autorização visível.",
+    "categoria": "FISCALIZACAO",
+    "regiao": "OUTRA",
+    "endereco": "Rua Comercial, 55",
+    "status": "ABERTA",
+    "prioridade": "MEDIA"
+  },
+  {
+    "id_denuncia": 206,
+    "cidadao_id": "cidadao-bruno",
+    "titulo": "Poste piscando",
+    "descricao": "Poste de luz piscando a madrugada inteira.",
+    "categoria": "ILUMINACAO_PUBLICA",
+    "regiao": "REGIAO_METROPOLITANA_DO_RECIFE",
+    "endereco": "Rua das Acácias, 7",
+    "status": "ABERTA",
+    "prioridade": "BAIXA"
+  }
+]

@@ -5,16 +5,16 @@ Expõe o endpoint POST /chat conforme especificado no design.md.
 
 import logging
 import time
-from typing import Any, Literal, Optional
+from typing import Literal, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from chatbot.agent import run_agent
-from chatbot.prompts import SESSION_EXPIRED_MESSAGE
+from chatbot.schema import Intent, OccurrenceDraft
 
 # Carrega variáveis de ambiente do .env
 load_dotenv()
@@ -42,21 +42,15 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessageInput] = Field(..., min_length=1)
 
 
-class ReportEntities(BaseModel):
-    location: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = None
-
-
 class ChatAction(BaseModel):
     type: Literal["navigate_to_form", "none"]
-    payload: Optional[ReportEntities] = None
+    payload: Optional[OccurrenceDraft] = None
 
 
 class ChatResponse(BaseModel):
     message: str
-    intent: Literal["faq", "report", "query_report", "unknown"]
-    entities: Optional[ReportEntities] = None
+    intent: Intent
+    draft: Optional[OccurrenceDraft] = None
     action: ChatAction
 
 
@@ -138,11 +132,9 @@ def chat(
     # if not user_token:
     #     raise HTTPException(status_code=401, detail=SESSION_EXPIRED_MESSAGE)
 
-    # versão a ser usada sem back-end
-    # Token opcional — usa "anonymous" se não fornecido (modo de desenvolvimento)
-    user_token = "anonymous"
+    user_token = ""
     if authorization and authorization.startswith("Bearer "):
-        user_token = authorization.removeprefix("Bearer ").strip() or "anonymous"
+        user_token = authorization.removeprefix("Bearer ").strip()
 
     logger.info(
         "Chat request | conversationId=%s | userId=%s | messages=%d",
@@ -167,25 +159,17 @@ def chat(
         result.get("intent"),
     )
 
-    # Monta a resposta tipada
-    entities = None
-    if result.get("entities"):
-        entities = ReportEntities(**result["entities"])
-
+    draft = OccurrenceDraft(**result["draft"]) if result.get("draft") else None
     action_data = result.get("action", {"type": "none"})
     action = ChatAction(
         type=action_data.get("type", "none"),
-        payload=(
-            ReportEntities(**action_data["payload"])
-            if action_data.get("payload")
-            else None
-        ),
+        payload=OccurrenceDraft(**action_data["payload"]) if action_data.get("payload") else None,
     )
 
     return ChatResponse(
         message=result["message"],
         intent=result.get("intent", "faq"),
-        entities=entities,
+        draft=draft,
         action=action,
     )
 
@@ -199,7 +183,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={
             "message": "O assistente está temporariamente indisponível. Por favor, use o app diretamente.",
             "intent": "unknown",
-            "entities": None,
+            "draft": None,
             "action": {"type": "none"},
         },
     )

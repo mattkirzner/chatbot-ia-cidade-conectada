@@ -22,3 +22,6 @@ build/
 
 # Docker
 *.log
+
+# Log de uso dos dados gerado na correção da AV2
+chatbot/data/uso_dados.jsonl
